@@ -1,2 +1,3 @@
 # py-osumania
-python lib for osu!mania beatmap
+python lib for osu!mania beatmap\
+currently incomplete
