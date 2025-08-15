@@ -58,7 +58,7 @@ class BeatmapData:
         else:
             raise OptionNameException()
         
-class BDgeneral(BeatmapData):
+class BeatmapGeneral(BeatmapData):
     options = dict(
         AudioFilename = Option(
             value = '', 
@@ -88,9 +88,9 @@ class BDgeneral(BeatmapData):
             bound = Option.closedrange(0, 1)
         ),
         Mode = Option(
-            value = 0,
+            value = 3, # 3 = osu!mania
             inst = int,
-            bound = Option.closedrange(0, 3)
+            bound = Option.closedrange(3, 3)
         ),
         LetterboxInBreaks = Option(
             value = 0,
@@ -138,9 +138,9 @@ class BDgeneral(BeatmapData):
     )
 
     def __init__(self):
-        self.data = deepcopy(BDgeneral.options)
+        self.data = deepcopy(BeatmapGeneral.options)
 
-class BDeditor(BeatmapData):
+class BeatmapEditor(BeatmapData):
     options = dict(
         Bookmarks = Option(
             value = [],
@@ -165,9 +165,9 @@ class BDeditor(BeatmapData):
     )
 
     def __init__(self):
-        self.data = deepcopy(BDeditor.options)
+        self.data = deepcopy(BeatmapEditor.options)
 
-class BDmetadata(BeatmapData):
+class BeatmapMetadata(BeatmapData):
     options = dict(
         Title = Option(
             value = '',
@@ -212,9 +212,9 @@ class BDmetadata(BeatmapData):
     )
 
     def __init__(self):
-        self.data = deepcopy(BDmetadata.options)
+        self.data = deepcopy(BeatmapMetadata.options)
 
-class BDdifficulty(BeatmapData):
+class BeatmapDifficulty(BeatmapData):
     options = dict(
         HPDrainRate = Option(
             value = 5.0,
@@ -222,9 +222,9 @@ class BDdifficulty(BeatmapData):
             bound = Option.closedrange(0, 10)
         ),
         CircleSize = Option(
-            value = 5.0,
-            inst = float,
-            bound = Option.closedrange(0, 10)
+            value = 4, # key count in osu!mania
+            inst = int,
+            bound = Option.closedrange(4, 18)
         ),
         OverallDifficulty = Option(
             value = 5.0,
@@ -247,12 +247,22 @@ class BDdifficulty(BeatmapData):
     )
 
     def __init__(self):
-        self.data = deepcopy(BDdifficulty.options)
+        self.data = deepcopy(BeatmapDifficulty.options)
 
-class BDevents(BeatmapData):
+class BeatmapEvents(BeatmapData):
     pass
 
-class BDtimingpoints(BeatmapData):
+class BeatmapTimingpoints(BeatmapData):
+    def __init__(self):
+        self.points = []
+
+    def addPoint(self, point):
+        self.points.append(point)
+
+class BeatmapDataObject(BeatmapData):
+    pass
+
+class Timingpoint(BeatmapDataObject):
     options = dict(
         Time = Option(
             value = 0,
@@ -292,18 +302,30 @@ class BDtimingpoints(BeatmapData):
     )
 
     def __init__(self):
-        self.data = deepcopy(BDtimingpoints.options)
+        self.data = deepcopy(Timingpoint.options)
 
     def setBPM(self, bpm):
         self.setOption('BeatLength', (60000 / bpm))
 
     def getBPM(self):
         return (60000 / self.getOption('BeatLength'))
-    
-class BDcolours(BeatmapData):
+
+
+class BeatmapColours(BeatmapData):
     pass
 
-class Note(BeatmapData):
+class BeatmapHitobjects(BeatmapData):
+    def __init__(self):
+        self.notes = []
+
+    def addNote(self, note):
+        self.notes.append(note)
+
+    def addNotes(self, notes):
+        for note in notes:
+            self.addNote(note)
+
+class Note(BeatmapDataObject):
     @staticmethod
     def calcX(linetuple):
         line_num, key_count = linetuple
@@ -347,25 +369,18 @@ class HoldNote(Note):
     def __init__(self, linetuple, start, end):
         super().__init__(linetuple, 128, start, end)
 
-class BDhitobjects:
-    def __init__(self):
-        self.notes = []
-
-    def addNote(self, note):
-        self.notes.append(note)
-
 # ===== Beatmap ===== #
 
 class Beatmap:
     def __init__(self):
-        self.General = BDgeneral()
-        self.Editor = BDeditor()
-        self.Metadata = BDmetadata()
-        self.Difficulty = BDdifficulty()
-        self.Events = BDevents()
-        self.TimingPoints = BDtimingpoints()
-        self.Colours = BDcolours()
-        self.HitObjects = BDhitobjects()
+        self.General = BeatmapGeneral()
+        self.Editor = BeatmapEditor()
+        self.Metadata = BeatmapMetadata()
+        self.Difficulty = BeatmapDifficulty()
+        self.Events = BeatmapEvents()
+        self.TimingPoints = BeatmapTimingpoints()
+        self.Colours = BeatmapColours()
+        self.HitObjects = BeatmapHitobjects()
 
     def compile(self):
         result = 'osu file format v14\n'
@@ -383,9 +398,11 @@ class Beatmap:
             result += f'{key}: {self.Difficulty.getOption(key)}\n'
         result += '\n[Events]\n'
         result += '\n[TimingPoints]\n'
-        for key in self.TimingPoints.data:
-            result += f'{self.TimingPoints.getOption(key)}, '
-        result = result[:-2]
+        for point in self.Timingpoints.points:
+            for key in point.data:
+                result += f'{point.getOption(key)}, '
+            result = result[:-2]
+            result += '\n'
         result += '\n'
         result += '\n[Colours]\n'
         result += '\n'
@@ -396,3 +413,5 @@ class Beatmap:
             result = result[:-2]
             result += '\n'
         return result
+
+    
